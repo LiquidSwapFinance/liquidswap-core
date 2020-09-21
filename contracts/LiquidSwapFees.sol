@@ -8,7 +8,7 @@ contract LiquidSwapFees is Ownable {
     uint public feeMultiplier;
     uint public feeExponent;
 
-    constructor(uint _fee, uint _feeMultiplier, _feeExponent){
+    constructor(uint _fee, uint _feeMultiplier, uint _feeExponent) public {
         fee = _fee;
         feeMultiplier = _feeMultiplier;
         feeExponent = _feeExponent;
@@ -18,11 +18,11 @@ contract LiquidSwapFees is Ownable {
         return fee;
     }
 
-    function getFeeMultiplier() public view returns(uint feeMultiplier){
+    function getFeeMultiplier() public view returns(uint _feeMultiplier){
         return feeMultiplier;
     }
 
-    function getFeeExponent() public view returns(uint feeExponent){
+    function getFeeExponent() public view returns(uint _feeExponent){
         return feeExponent;
     }
 
@@ -40,7 +40,7 @@ contract LiquidSwapFees is Ownable {
         feeExponent = _feeExponent;
     }
 
-    function renounceOwnership() override {
+    function renounceOwnership() public override {
         revert("LiquidSwapFees: Cannot renounce ownership, someone (or something) needs to adjust to market values.");
     }
 }

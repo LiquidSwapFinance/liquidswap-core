@@ -2,11 +2,14 @@ pragma solidity >=0.6.12;
 //SPDX-License-Identifier: MIT-0
 import '@openzeppelin/contracts/token/ERC777/ERC777.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import './libraries/Math.sol';
+import '@openzeppelin/contracts/math/SafeMath.sol';
+import '@openzeppelin/contracts/math/Math.sol';
 import './libraries/UQ112x112.sol';
+import './libraries/LiquidSwapMath.sol';
 import './interfaces/IERC20.sol';
 import './interfaces/ILiquidSwapFactory.sol';
 import './interfaces/ILiquidSwapCallee.sol';
+
 
 
 interface IMigrator {
@@ -15,14 +18,14 @@ interface IMigrator {
 }
 
 contract LiquidSwapPair is ERC777, Ownable {
-    using Math for uint;
+    using SafeMath for uint;
     using UQ112x112 for uint224;
 
-    constructor(string memory _name, string memory _symbol, address[] memory _defaultOperators)
+    constructor(string memory _name, string memory _symbol, address[] memory _defaultOperators) public
         ERC777(_name, _symbol, _defaultOperators)
         Ownable()
     {
-
+        factory = msg.sender;
     }
 
     uint public constant MINIMUM_LIQUIDITY = 10**3;
@@ -71,9 +74,6 @@ contract LiquidSwapPair is ERC777, Ownable {
     );
     event Sync(uint112 reserve0, uint112 reserve1);
 
-    constructor() public {
-        factory = msg.sender;
-    }
 
     // called once by the factory at time of deployment
     function initialize(address _token0, address _token1) external {
@@ -105,13 +105,13 @@ contract LiquidSwapPair is ERC777, Ownable {
         uint _kLast = kLast; // gas savings
         if (feeOn) {
             if (_kLast != 0) {
-                uint rootK = Math.sqrt(uint(_reserve0).mul(_reserve1));
-                uint rootKLast = Math.sqrt(_kLast);
+                uint rootK = LiquidSwapMath.sqrt(uint(_reserve0).mul(_reserve1));
+                uint rootKLast = LiquidSwapMath.sqrt(_kLast);
                 if (rootK > rootKLast) {
-                    uint numerator = totalSupply.mul(rootK.sub(rootKLast));
+                    uint numerator = totalSupply().mul(rootK.sub(rootKLast));
                     uint denominator = rootK.mul(5).add(rootKLast);
                     uint liquidity = numerator / denominator;
-                    if (liquidity > 0) _mint(feeTo, liquidity);
+                    if (liquidity > 0) _mint(feeTo, liquidity, "", "");
                 }
             }
         } else if (_kLast != 0) {
@@ -128,7 +128,7 @@ contract LiquidSwapPair is ERC777, Ownable {
         uint amount1 = balance1.sub(_reserve1);
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
-        uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        uint _totalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in _mintFee
         if (_totalSupply == 0) {
             address migrator = ILiquidSwapFactory(factory).migrator();
             if (msg.sender == migrator) {
@@ -136,14 +136,14 @@ contract LiquidSwapPair is ERC777, Ownable {
                 require(liquidity > 0 && liquidity != uint256(-1), "Bad desired liquidity");
             } else {
                 require(migrator == address(0), "Must not have migrator");
-                liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
-                _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
+                liquidity = LiquidSwapMath.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
+                _mint(address(0), MINIMUM_LIQUIDITY, "", ""); // permanently lock the first MINIMUM_LIQUIDITY tokens
             }
         } else {
             liquidity = Math.min(amount0.mul(_totalSupply) / _reserve0, amount1.mul(_totalSupply) / _reserve1);
         }
         require(liquidity > 0, 'LiquidSwap: INSUFFICIENT_LIQUIDITY_MINTED');
-        _mint(to, liquidity);
+        _mint(to, liquidity, "", "");
 
         _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
@@ -157,14 +157,14 @@ contract LiquidSwapPair is ERC777, Ownable {
         address _token1 = token1;                                // gas savings
         uint balance0 = IERC20Uniswap(_token0).balanceOf(address(this));
         uint balance1 = IERC20Uniswap(_token1).balanceOf(address(this));
-        uint liquidity = balanceOf[address(this)];
+        uint liquidity = balanceOf(address(this));
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
-        uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        uint _totalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in _mintFee
         amount0 = liquidity.mul(balance0) / _totalSupply; // using balances ensures pro-rata distribution
         amount1 = liquidity.mul(balance1) / _totalSupply; // using balances ensures pro-rata distribution
         require(amount0 > 0 && amount1 > 0, 'LiquidSwap: INSUFFICIENT_LIQUIDITY_BURNED');
-        _burn(address(this), liquidity);
+        _burn(address(this), liquidity, "", "");
         _safeTransfer(_token0, to, amount0);
         _safeTransfer(_token1, to, amount1);
         balance0 = IERC20Uniswap(_token0).balanceOf(address(this));
