@@ -2,19 +2,21 @@ pragma solidity >=0.6.12;
 //SPDX-License-Identifier: MIT-0
 import './interfaces/ILiquidSwapFactory.sol';
 import './LiquidSwapPair.sol';
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./libraries/LiquidSwapLibrary.sol";
+import "./interfaces/ILiquidSwapFee.sol";
 
-contract LiquidSwapFactory is ILiquidSwapFactory {
-    address public override feeTo;
-    address public override feeToSetter;
+contract LiquidSwapFactory is ILiquidSwapFactory, Ownable {
     address public override migrator;
+    ILquidSwapFee public override feeContract;
 
     mapping(address => mapping(address => address)) public override getPair;
     address[] public override allPairs;
 
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
 
-    constructor(address _feeToSetter) public {
-        feeToSetter = _feeToSetter;
+    constructor(address owner) public {
+        transferOwnership(owner);
     }
 
     function allPairsLength() external override view returns (uint) {
@@ -27,7 +29,7 @@ contract LiquidSwapFactory is ILiquidSwapFactory {
 
     function createPair(address tokenA, address tokenB) external override returns (address pair) {
         require(tokenA != tokenB, 'LiquidSwap: IDENTICAL_ADDRESSES');
-        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+        (address token0, address token1) = LiquidSwapLibrary.sortPairs(token0, token1);
         require(token0 != address(0), 'LiquidSwap: ZERO_ADDRESS');
         require(getPair[token0][token1] == address(0), 'LiquidSwap: PAIR_EXISTS'); // single check is sufficient
         bytes memory bytecode = type(LiquidSwapPair).creationCode;
@@ -42,19 +44,12 @@ contract LiquidSwapFactory is ILiquidSwapFactory {
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
-    function setFeeTo(address _feeTo) external override {
-        require(msg.sender == feeToSetter, 'LiquidSwap: FORBIDDEN');
-        feeTo = _feeTo;
-    }
-
-    function setMigrator(address _migrator) external override {
-        require(msg.sender == feeToSetter, 'LiquidSwap: FORBIDDEN');
+    function setMigrator(address _migrator) external override onlyOwner {
         migrator = _migrator;
     }
 
-    function setFeeToSetter(address _feeToSetter) external override {
-        require(msg.sender == feeToSetter, 'LiquidSwap: FORBIDDEN');
-        feeToSetter = _feeToSetter;
+    function setFeeContract(ILiquidSwapFee _feeContract) external override onlyOwner {
+        feeContract = _feeContract;
     }
 
 }

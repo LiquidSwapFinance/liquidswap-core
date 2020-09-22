@@ -1,7 +1,6 @@
 pragma solidity >=0.6.12;
 //SPDX-License-Identifier: MIT-0
 import '../interfaces/ILiquidSwapPair.sol';
-
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 library LiquidSwapLibrary {
