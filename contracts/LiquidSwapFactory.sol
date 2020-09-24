@@ -11,6 +11,8 @@ contract LiquidSwapFactory is ILiquidSwapFactory, Ownable {
     ILquidSwapFee public override feeContract;
 
     mapping(address => mapping(address => address)) public override getPair;
+    mapping(address => mapping(address => address)) public override feeContract;
+
     address[] public override allPairs;
 
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
@@ -48,8 +50,17 @@ contract LiquidSwapFactory is ILiquidSwapFactory, Ownable {
         migrator = _migrator;
     }
 
-    function setFeeContract(ILiquidSwapFee _feeContract) external override onlyOwner {
-        feeContract = _feeContract;
+    function getFeeContract(address token0, address token1) external override returns (address _feeContract){
+        address fee = feeContract[token0][token1];
+        if(fee =! 0x0){
+            return fee; 
+        }
+        return feeContract;
+    }
+
+    function setFeeContract(address token0, address token1, ILiquidSwapFee _feeContract) external override onlyOwner {
+        feeContract[token0][token1] = _feeContract;
+        feeContract[token1][token0] = _feeContract; // populate mapping in the reverse direction
     }
 
 }
