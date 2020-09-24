@@ -329,7 +329,7 @@ contract LiquidSwapRouter is ILiquidSwapRouter {
             (uint reserve0, uint reserve1,) = pair.getReserves();
             (uint reserveInput, uint reserveOutput) = input == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
             amountInput = IERC20(input).balanceOf(address(pair)).sub(reserveInput);
-            amountOutput = getAmountOut(amountInput, reserveInput, reserveOutput);
+            amountOutput = getAmountOut(input, output, amountInput, reserveInput, reserveOutput);
             }
             (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOutput) : (amountOutput, uint(0));
             address to = i < path.length - 2 ? pairFor(factory, output, path[i + 2]) : _to;
@@ -415,19 +415,20 @@ contract LiquidSwapRouter is ILiquidSwapRouter {
         override
         returns (uint amountOut)
     {
-        return LiquidSwapLibrary.getAmountOut(amountIn, reserveIn, reserveOut);
+        return factory.getFeeContract(token0, token1).getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
-    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut)
+    function getAmountIn(address token0, address token1, uint amountOut, uint reserveIn, uint reserveOut)
         public
         pure
         virtual
         override
         returns (uint amountIn)
     {
-        return LiquidSwapLibrary.getAmountIn(amountOut, reserveIn, reserveOut);
+        return factory.getFeeContract(token0, token1).getAmountIn(amountOut, reserveIn, reserveOut);
     }
 
+    // performs chained getAmountOut calculations on any number of pairs
     function getAmountsOut(uint amountIn, address[] memory path)
         public
         view
@@ -435,9 +436,16 @@ contract LiquidSwapRouter is ILiquidSwapRouter {
         override
         returns (uint[] memory amounts)
     {
-        return LiquidSwapLibrary.getAmountsOut(factory, amountIn, path);
+        require(path.length >= 2, 'LiquidSwapLibrary: INVALID_PATH');
+        amounts = new uint[](path.length);
+        amounts[0] = amountIn;
+        for (uint i; i < path.length - 1; i++) {
+            (uint reserveIn, uint reserveOut) = getReserves(factory, path[i], path[i + 1]);
+            amounts[i + 1] = getAmountOut(path[i], path[i + 1], amounts[i], reserveIn, reserveOut);
+        }
     }
 
+    // performs chained getAmountIn calculations on any number of pairs
     function getAmountsIn(uint amountOut, address[] memory path)
         public
         view
@@ -445,6 +453,19 @@ contract LiquidSwapRouter is ILiquidSwapRouter {
         override
         returns (uint[] memory amounts)
     {
-        return LiquidSwapLibrary.getAmountsIn(factory, amountOut, path);
+        require(path.length >= 2, 'LiquidSwapLibrary: INVALID_PATH');
+        amounts = new uint[](path.length);
+        amounts[amounts.length - 1] = amountOut;
+        for (uint i = path.length - 1; i > 0; i--) {
+            (uint reserveIn, uint reserveOut) = getReserves(factory, path[i - 1], path[i]);
+            amounts[i - 1] = getAmountIn(path[i - 1], path[i], amounts[i], reserveIn, reserveOut);
+        }
+    }
+
+    // fetches and sorts the reserves for a pair
+    function getReserves(address factory, address tokenA, address tokenB) internal view returns (uint reserveA, uint reserveB) {
+        (address token0,) = sortTokens(tokenA, tokenB);
+        (uint reserve0, uint reserve1,) = ILiquidSwapPair(pairFor(factory, tokenA, tokenB)).getReserves();
+        (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 }
