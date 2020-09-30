@@ -100,7 +100,7 @@ contract LiquidSwapPair is ERC777, Ownable {
 
     // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
     function _mintFee(uint112 _reserve0, uint112 _reserve1) private returns (bool feeOn) {
-        address feeTo = ILiquidSwapFactory(factory).getFeeContract().feeTo();
+        address feeTo = ILiquidSwapFactory(factory).getFeeContract(address(this)).getFeeTo();
         feeOn = feeTo != address(0);
         uint _kLast = kLast; // gas savings
         if (feeOn) {

@@ -8,5 +8,6 @@ interface ILiquidSwapFee{
     function setBaseAndPercent(uint _base, uint _percent) external;
     function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
     function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
+    function setFeeTo(address _feeTo) external;
     
 }

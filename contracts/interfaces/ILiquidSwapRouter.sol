@@ -1,8 +1,6 @@
 pragma solidity >=0.6.12;
 //SPDX-License-Identifier: MIT-0
-interface ILiquidSwapRouter01 {
-    function factory() external pure returns (address);
-    function WETH() external pure returns (address);
+interface ILiquidSwapRouter {
 
     function addLiquidity(
         address tokenA,
@@ -88,9 +86,9 @@ interface ILiquidSwapRouter01 {
         returns (uint[] memory amounts);
 
     function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
-    function pairFor(address _factory, address _tokenA, address _tokenB) external pure returns (address pair);
-    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
-    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
+    function pairFor(address _tokenA, address _tokenB) external view returns (address pair);
+    function getAmountOut(address pair, uint amountIn, uint reserveIn, uint reserveOut) external view returns (uint amountOut);
+    function getAmountIn(address pair, uint amountOut, uint reserveIn, uint reserveOut) external view returns (uint amountIn);
     function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
     function removeLiquidityETHSupportingFeeOnTransferTokens(

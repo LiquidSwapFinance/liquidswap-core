@@ -19,7 +19,7 @@ contract LiquidSwapFee is ILiquidSwapFee, Ownable{
         percent = percent;        
     }
     
-    function getFeeTo() public virtual override returns (address _feeTo){
+    function getFeeTo() public virtual override view returns (address _feeTo){
         return feeTo;
     }
 
