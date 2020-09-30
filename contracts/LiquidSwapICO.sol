@@ -7,8 +7,9 @@ contract LiquidSwapICO is ERC777{
     
     uint public immutable launchBlock;
     address public immutable backingToken;
-    uint public immutable depositMin = 1^16 wei;
-    ILiquidSwapPair public liquidityPool = 0x0;
+    uint public immutable depositMin;
+    ILiquidSwapPair public liquidityPool;
+    address public immutable weth;
 
     event Deposit(address owner, uint amount);
     event Withdraw(address owner, uint amount);
@@ -36,10 +37,11 @@ contract LiquidSwapICO is ERC777{
         return backingToken != address(0x0);
     }
 
-    constructor(address _backingToken, uint _launchBlock, uint _depositMin){
+    constructor(address _backingToken, uint _launchBlock, uint _depositMin, address _weth){
         backingToken = _backingToken;
         launchBlock = _launchBlock;
         depositMin = _depositMin;
+        weth = _weth;
     }
 
     function deposit() public payable onlyETH beforeICO {
@@ -71,11 +73,27 @@ contract LiquidSwapICO is ERC777{
     }
 
     function closeICO() public afterICO beforeClose {
-        //TODO: Launch the factory, then the pair, then the new token.
-        //TODO: Set the liquidityPool.
-        //TODO: Burn half the supply.
-        //TODO: Mint all the tokens.
+        ILiquidSwapToken token = new LiquidSwapToken(this);
+        ITimelock timelock = new TimeLock();
+        ILiquidSwapFactory factory = new LiquidSwapFactory(timelock);
+        ILiquidSwapRouter router = new LiquidSwapRouter(timelock, factory, weth);
+        if(backingToken == address(0x0)){
+            uint amountToBurn = this.balance / 2;
+            this.send(address(0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef), amountToBurn);
+            token.mint(this, amountToBurn);
+            //router.route everything for eth.
+            //TODO: Set the liquidityPool.
+        }else{
+            IERC20 back = IERC20(backingToken);
+            uint amountToBurn = back.balanceOf(address(this)) / 2;
+            require(back.transfer(address(0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef), amountToBurn), "LiquidSwapICO: ERC20 burning was unsuccessful.");
+            token.mint(this, amountToBurn);
+            //router.route everything for erc20 
+            //TODO: Set the liquidityPool.
+        }
         //TODO: Transfer everything to the liquidityPool.
+        //TODO: Set the liquidityPool.
+        token.setOwner(timelock);
         ended = true;
     }
 
