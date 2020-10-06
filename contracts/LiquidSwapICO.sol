@@ -11,8 +11,12 @@ contract LiquidSwapICO is ERC777{
     ILiquidSwapPair public liquidityPool;
     address public immutable weth;
 
+    address immutable BURN_ADDRESS = 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef;
+
     event Deposit(address owner, uint amount);
     event Withdraw(address owner, uint amount);
+    event Close(address factory, address router, address ICOLiquidityPool, address fees, address timelock);
+    event Redeem(address redeemer, uint amount, uint amountWithdrawn);
     
     modifier beforeIco(){
         require(launchBlock < now, "LiquidSwapICO: The ICO has ended.");
@@ -79,21 +83,19 @@ contract LiquidSwapICO is ERC777{
         ILiquidSwapRouter router = new LiquidSwapRouter(timelock, factory, weth);
         if(backingToken == address(0x0)){
             uint amountToBurn = this.balance / 2;
-            this.send(address(0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef), amountToBurn);
+            this.send(BURN_ADDRESS, amountToBurn);
             token.mint(this, amountToBurn);
             //router.route everything for eth.
             //TODO: Set the liquidityPool.
         }else{
             IERC20 back = IERC20(backingToken);
             uint amountToBurn = back.balanceOf(address(this)) / 2;
-            require(back.transfer(address(0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef), amountToBurn), "LiquidSwapICO: ERC20 burning was unsuccessful.");
+            require(back.transfer(BURN_ADDRESS, amountToBurn), "LiquidSwapICO: ERC20 burning was unsuccessful.");
             token.mint(this, amountToBurn);
             //router.route everything for erc20 
             //TODO: Set the liquidityPool.
         }
-        //TODO: Transfer everything to the liquidityPool.
-        //TODO: Set the liquidityPool.
-        token.setOwner(timelock);
+        token.setOwner(router);
         ended = true;
     }
 
